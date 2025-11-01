@@ -47,8 +47,8 @@ class LocalCursorManager:
             x, y = controller.position
             target = self._calculate_target(edge, (x, y), edge_margin)
             controller.position = target
-        except Exception:
-            pass
+        except Exception as exc:
+            LOG.debug("Failed to warp local cursor (mode=%s, edge=%s): %s", self.mode, edge, exc)
 
     def _calculate_target(self, edge: Optional[str], pos: Tuple[int, int], margin: int) -> Tuple[int, int]:
         x, y = pos

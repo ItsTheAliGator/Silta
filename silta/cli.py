@@ -8,7 +8,7 @@ from typing import Dict, Optional, Tuple
 
 from .client import FlowClient, DEFAULT_BACK_HOTKEY, DEFAULT_TOGGLE_HOTKEY
 from .server import FlowServer
-from .utils import LOG, Arguments, DependencyError, configure_logging
+from .utils import LOG, DependencyError, configure_logging
 
 
 def build_parser() -> argparse.ArgumentParser:

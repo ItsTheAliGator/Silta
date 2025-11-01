@@ -1,20 +1,10 @@
 from __future__ import annotations
 
-import argparse
-import contextlib
 import json
 import logging
-import socket
-from dataclasses import dataclass
 from typing import Any, Dict, Tuple
 
 LOG = logging.getLogger("silta")
-
-
-@dataclass
-class Arguments:
-    mode: str
-    log_level: str
 
 
 class ConnectionError(Exception):

@@ -797,7 +797,11 @@ class FlowClient:
             LOG.error("Unable to start remote session: %s", exc)
             self._remote_active.clear()
             return
+        # Start local input capture; this may fail and deactivate the session.
         self._start_captors()
+        if not self._remote_active.is_set():
+            LOG.info("Remote session aborted during capture initialisation")
+            return
         self._cursor_manager.on_remote_start(self._active_edge, self.edge_margin)
         try:
             align_payload = None
@@ -807,7 +811,7 @@ class FlowClient:
                 entry_edge = edge_for_session or self._last_auto_edge
                 if entry_edge:
                     align_payload = self._compute_alignment_payload(entry_edge)
-            if align_payload:
+            if align_payload and self._remote_active.is_set():
                 self._send(align_payload)
         except ConnectionError as exc:
             LOG.warning("Failed to align cursor on remote edge: %s", exc)
