@@ -1,7 +1,10 @@
-"""Silta package exposing server/client utilities."""
+"""Silta package exposing core client/server utilities.
+
+Avoid importing the CLI from here to prevent side effects and to allow
+``python -m silta`` execution without runpy warnings.
+"""
 
 from .client import FlowClient
 from .server import FlowServer
-from .cli import build_parser, main
 
-__all__ = ["FlowClient", "FlowServer", "build_parser", "main"]
+__all__ = ["FlowClient", "FlowServer"]

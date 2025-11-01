@@ -9,6 +9,7 @@ from typing import Dict, Optional, Tuple
 from .client import FlowClient, DEFAULT_BACK_HOTKEY, DEFAULT_TOGGLE_HOTKEY
 from .server import FlowServer
 from .utils import LOG, DependencyError, configure_logging
+from . import mac_hid
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -70,6 +71,46 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run protocol self-tests and exit",
     )
+
+    gui = subparsers.add_parser("gui", help="Launch the menubar GUI (macOS only)")
+    gui.add_argument(
+        "--once",
+        action="store_true",
+        help="Build the menu once and quit (for smoke tests)",
+    )
+    gui.add_argument(
+        "--export-capabilities",
+        nargs="?",
+        const="__DEFAULT__",
+        help="Export connected device capabilities to JSON on launch (optionally provide a path)",
+    )
+
+    def parse_int(value: str) -> int:
+        try:
+            return int(value, 0)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(f"Invalid integer: {value}") from exc
+
+    caps = subparsers.add_parser("capabilities", help="Inspect or exercise device capabilities")
+    caps_sub = caps.add_subparsers(dest="cap_command")
+
+    cap_switch = caps_sub.add_parser("switch", help="Switch a Logitech Easy-Switch device to a host slot")
+    cap_switch.add_argument("--slot", type=int, choices=[1, 2, 3], required=True, help="Host slot number (1-3)")
+    cap_switch.add_argument("--product-id", type=parse_int, help="Filter device by product id (decimal or 0x-prefixed hex)")
+    cap_switch.add_argument("--serial", dest="serial_number", help="Filter device by serial number")
+    cap_switch.add_argument(
+        "--vendor-id",
+        type=parse_int,
+        default=mac_hid.LOGITECH_VENDOR_ID,
+        help="Filter by vendor id",
+    )
+    cap_switch.add_argument(
+        "--device-index",
+        type=parse_int,
+        default=None,
+        help="Override the HID++ device index (advanced)",
+    )
+    cap_switch.add_argument("--dry-run", action="store_true", help="Show the HID payload without sending it")
 
     return parser
 
@@ -196,6 +237,48 @@ def main() -> None:
             install_signal_handlers(stop_event=client._stop)  # type: ignore[attr-defined]
             client.run()
             return
+
+        if args.mode == "gui":
+            # Lazy import to avoid PyObjC dependency for non-GUI usage
+            from . import menubar
+
+            export_path = None
+            if getattr(args, "export_capabilities", None):
+                export_path = args.export_capabilities
+            
+            if getattr(args, "once", False):
+                # For a quick smoke test, build the menu and exit
+                try:
+                    menubar.run(export_path=export_path)
+                except SystemExit:
+                    pass
+                return
+            menubar.run(export_path=export_path)
+            return
+
+        if args.mode == "capabilities":
+            if not getattr(args, "cap_command", None):
+                parser.error("capabilities command requires an action")
+            if args.cap_command == "switch":
+                from .capabilities import switch_easy_switch_device
+
+                vendor_id = args.vendor_id if args.vendor_id is not None else mac_hid.LOGITECH_VENDOR_ID
+                try:
+                    device = switch_easy_switch_device(
+                        slot=args.slot,
+                        product_id=args.product_id,
+                        serial_number=args.serial_number,
+                        dry_run=args.dry_run,
+                        vendor_id=vendor_id,
+                        device_index=args.device_index,
+                    )
+                except (ValueError, RuntimeError) as exc:
+                    parser.error(str(exc))
+                label = device.product or f"VID 0x{device.vendor_id:04X} PID 0x{device.product_id:04X}"
+                verb = "Would switch" if args.dry_run else "Switched"
+                print(f"{verb} {label} to slot {args.slot}")
+                return
+            parser.error(f"Unknown capabilities command: {args.cap_command}")
 
         parser.error(f"Unknown mode: {args.mode}")
     except DependencyError as exc:

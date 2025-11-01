@@ -14,6 +14,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
+gui = [
+    "pyobjc>=9.0",
+]
 
 [tool.pytest.ini_options]
 addopts = "-q"
