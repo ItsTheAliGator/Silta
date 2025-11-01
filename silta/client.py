@@ -992,7 +992,7 @@ class FlowClient:
         LOG.warning("Unable to start %s listener with event suppression: %s", kind, exc)
         if sys.platform == "darwin":
             LOG.warning(
-                "Grant Accessibility permissions to Flowlite (System Settings > Privacy & Security > Accessibility)."
+                "Grant Accessibility permissions to Silta (System Settings > Privacy & Security > Accessibility)."
             )
 
     def _on_move(self, x: int, y: int):

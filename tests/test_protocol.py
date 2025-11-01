@@ -3,7 +3,7 @@ import hashlib
 
 import pytest
 
-from flowlite.protocol import (
+from silta.protocol import (
     PROTOCOL_VERSION,
     ProtocolError,
     build_client_hello,

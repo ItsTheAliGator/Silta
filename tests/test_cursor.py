@@ -1,6 +1,6 @@
 import pytest
 
-import flowlite.cursor as cursor
+import silta.cursor as cursor
 
 
 @pytest.fixture(autouse=True)

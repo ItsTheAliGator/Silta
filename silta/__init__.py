@@ -1,4 +1,4 @@
-"""Flowlite package exposing server/client utilities."""
+"""Silta package exposing server/client utilities."""
 
 from .client import FlowClient
 from .server import FlowServer

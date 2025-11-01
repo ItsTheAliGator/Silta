@@ -8,7 +8,7 @@ import socket
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple
 
-LOG = logging.getLogger("flowlite")
+LOG = logging.getLogger("silta")
 
 
 @dataclass

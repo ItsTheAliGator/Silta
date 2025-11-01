@@ -22,7 +22,7 @@ def build_client_hello(token: Optional[str]) -> Dict[str, Any]:
     nonce = secrets.token_hex(16)
     payload: Dict[str, Any] = {
         "type": "hello",
-        "client": "flowlite",
+    "client": "silta",
         "version": PROTOCOL_VERSION,
         "nonce": nonce,
     }
@@ -32,7 +32,7 @@ def build_client_hello(token: Optional[str]) -> Dict[str, Any]:
 
 
 def build_server_welcome() -> Dict[str, Any]:
-    return {"type": "welcome", "server": "flowlite", "version": PROTOCOL_VERSION}
+    return {"type": "welcome", "server": "silta", "version": PROTOCOL_VERSION}
 
 
 def validate_server_welcome(welcome: Dict[str, Any]) -> None:

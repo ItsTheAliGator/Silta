@@ -1,4 +1,4 @@
-from flowlite.client import FlowClient
+from silta.client import FlowClient
 
 
 def test_normalize_hotkey_aliases() -> None:

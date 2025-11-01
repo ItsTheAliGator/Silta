@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from flowlite.cli import load_edge_profile
+from silta.cli import load_edge_profile
 
 
 def test_load_edge_profile_parses_entries(tmp_path):
