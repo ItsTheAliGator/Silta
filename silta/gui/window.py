@@ -181,7 +181,9 @@ class ConnectionWindowCoordinator:
             item = AppKit.NSTabViewItem.alloc().initWithIdentifier_(label)
             item.setLabel_(label)
             view = AppKit.NSView.alloc().initWithFrame_(self.content_view.bounds())
-            view.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            # IMPORTANT: internal views of NSTabView should usually have autoresizing ON so the TabView can resize them.
+            view.setTranslatesAutoresizingMaskIntoConstraints_(True)
+            view.setAutoresizingMask_(AppKit.NSViewWidthSizable | AppKit.NSViewHeightSizable)
             item.setView_(view)
             icon = self.symbols.symbol(symbol, 16.0)
             if icon is not None:

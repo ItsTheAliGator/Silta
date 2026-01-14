@@ -3,11 +3,12 @@ from typing import Dict, Optional
 from silta.core.device_registry import DeviceRegistry, RegisteredDevice
 from silta.hid.backends import easy_switch_via_hidapi # Import specific backend
 from silta.client import FlowClient # Wraps event tap
-# TODO: We need a way to control specific devices.
-# InputOrchestrator coordinates:
-# - Active Peer (Target)
 # - Which devices should be forwarded (Software Relay)
 # - Which devices should be switched (Hardware Direct)
+
+from silta.core.local_input import LocalInputMonitor
+from silta.client import FlowClient # Using FlowClient as the network sender for now
+
 
 LOG = logging.getLogger(__name__)
 
@@ -22,9 +23,30 @@ class InputOrchestrator:
         """Set the peer we are controlling."""
         self.active_peer_id = peer_id
         # Initialize software client for relay
-        # Port hardcoded or discoverable? discovery service provides port.
-        # For now assuming standard port or passed in.
-        # self._software_client = FlowClient(peer_address, 59873) # TODO: dynamic port
+        # TODO: Refactor FlowClient to be a pure sender without its own listeners?
+        # For now, we inject dependencies or re-instantiate.
+        # Ideally we use a lighter Sender class.
+        # But FlowClient encapsulates the protocol.
+        # Let's assume we can reuse it but disable its internal tapping or hook it up to our monitor.
+        
+        # Simplified: Create a new client instance configured for this peer
+        self._software_client = FlowClient(
+            server_host=peer_address,
+            server_port=59873,
+            token="TODO_TOKEN", # Need to get token from session/settings
+            edge=None,
+            edge_margin=0,
+            edge_delay=0,
+            toggle_hotkey="",
+            back_hotkey="",
+            heartbeat=10.0,
+            local_cursor_mode="auto",
+            return_margin=10
+        )
+        # We need to manually start its connection manager but NOT its loop() which blocks.
+        # FlowClient.run() blocks. We need async or threaded start.
+        self._software_client._start_connection_manager()
+
 
     def start_control(self):
         """
@@ -61,19 +83,18 @@ class InputOrchestrator:
     def _switch_hardware_device(self, dev: RegisteredDevice):
         if not dev.hid_device: return
         LOG.info(f"Switching {dev.name} to Remote Slot via Hardware...")
-        # TODO: Lookup proper slot for this peer from configuration
-        target_slot = 2 # Placeholder: User must map this!
+        
+        # TODO: Lookup proper slot from settings (e.g. self.registry.get_slot_mapping(dev.id, peer_id))
+        target_slot = 2 
         
         try:
-            # We need to know which backend to use.
-            # Assuming backend selection logic exists or we use generic.
-            # Warning: easy_switch_via_hidapi might need context.
-            # For now simplified call.
-            # NOTE: this is "fire and forget". We lose control of the mouse!
-            # To get it back, the user must switch it back on the other computer,
-            # OR we rely on the other computer running Silta to switch it back??
-            # Actually, "Hardware Direct" usually means we lose it until we move edge on remote.
-            pass
+            from silta.capabilities import EasySwitchController
+            controller = EasySwitchController.from_device(dev.hid_device)
+            if controller:
+                controller.switch_slot(target_slot)
+            else:
+                LOG.warning(f"Device {dev.name} is not a recognized Easy-Switch device.")
+                
         except Exception as e:
             LOG.error(f"Failed to switch hardware: {e}")
 
@@ -84,10 +105,8 @@ class InputOrchestrator:
 
     def _start_software_relay(self):
         if self._software_client:
-            # self._software_client.start()
-            pass
+            self._software_client.activate_remote(reason="hybrid_orchestrator")
 
     def _stop_software_relay(self):
         if self._software_client:
-            # self._software_client.stop()
-            pass
+            self._software_client.deactivate_remote(reason="hybrid_orchestrator_stop")

@@ -3,7 +3,7 @@ import socket
 import uuid
 import json
 from typing import Dict, Optional, Callable
-from zeroconf import Zeroconf, ServiceInfo, ServiceBrowser, ServiceStateChange
+from zeroconf import Zeroconf, ServiceInfo, ServiceBrowser, ServiceStateChange, NonUniqueNameException
 
 LOG = logging.getLogger(__name__)
 
@@ -50,7 +50,24 @@ class DiscoveryService:
         )
         
         LOG.info(f"Advertising service: {self.peer_name} at {local_ip}:{self.port}")
-        self._zeroconf.register_service(self._service_info)
+        try:
+            self._zeroconf.register_service(self._service_info)
+        except NonUniqueNameException:
+            LOG.warning(f"Name {self.peer_name} is taken. Renaming...")
+            # Simple retry with ID suffix
+            new_name = f"{self.peer_name} ({self.peer_id[:4]})"
+            self._service_info = ServiceInfo(
+                SERVICE_TYPE,
+                f"{new_name}.{SERVICE_TYPE}",
+                addresses=[socket.inet_aton(local_ip)],
+                port=self.port,
+                properties=desc,
+                server=f"{self.peer_id}.local.",
+            )
+            # If this fails, we let it crash or retry loop. 
+            # For now single retry is robust enough for simple restarts.
+            self._zeroconf.register_service(self._service_info)
+            self.peer_name = new_name
 
     def stop_advertising(self):
         """Stop advertising."""
