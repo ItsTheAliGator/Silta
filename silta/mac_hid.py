@@ -39,6 +39,9 @@ class HIDDevice:
     product: Optional[str]
     serial_number: Optional[str]
     location_id: Optional[int]
+    usage_page: Optional[int] = None
+    usage: Optional[int] = None
+    built: Optional[bool] = None
 
     def matching_dict(self) -> dict:
         """Return an ``hidutil`` matching dictionary for the device."""
@@ -47,6 +50,133 @@ class HIDDevice:
         if self.serial_number:
             match["SerialNumber"] = self.serial_number
         return match
+
+    @property
+    def device_type(self) -> str:
+        """
+        Determine device type from HID usage page/usage, with overrides for known devices.
+        
+        Many composite HID devices (especially Logitech) expose multiple interfaces,
+        and we may only see one HID usage. Use product name and VID/PID to override
+        classification for well-known devices.
+        
+        Standard HID Usage Tables (USB HID 1.11):
+        - Usage Page 1 (Generic Desktop):
+            - Usage 2 = Mouse
+            - Usage 6 = Keyboard  
+            - Usage 4 = Joystick
+            - Usage 5 = Game Pad
+            - Usage 8 = Multi-axis Controller
+        - Usage Page 12 (Consumer): Remote controls
+        """
+        # Check for known device overrides first (Logitech mice often report as keyboards)
+        if self.vendor_id == 0x046D:  # Logitech
+            # Known mice PIDs
+            LOGITECH_MICE_PIDS = {
+                0xB023, 0x4082,  # MX Master 3
+                0xB024, 0x408E,  # MX Master 3S
+                0xB034, 0x4093,  # MX Master 3S for Business
+                0xB019, 0x4069,  # MX Anywhere 3
+                0xB012, 0x4060,  # MX Anywhere 2S
+                0xB010, 0x4056,  # MX Anywhere 2
+                0xB35B, 0x408A, 0xB35F,  # MX Keys (mouse component of combo)
+                0xB367, 0x4096,  # MX Ergo
+                0xB369,  # Note: B369 is MX Keys Mini (keyboard)
+                0xB36B,  # MX Ergo Plus
+            }
+            # Known keyboards PIDs
+            LOGITECH_KEYBOARD_PIDS = {
+                0xB369,  # MX Keys Mini
+                0xB35B, 0x408A, 0xB35F,  # MX Keys (keyboard)
+                0xB367, 0x4096,  # MX Keys for Mac
+            }
+            
+            # Product name heuristics
+            if self.product:
+                product_lower = self.product.lower()
+                if any(term in product_lower for term in ['master', 'anywhere', 'ergo']) and 'keys' not in product_lower:
+                    return "mouse"
+                if 'keys' in product_lower or 'keyboard' in product_lower:
+                    return "keyboard"
+            
+            # PID-based override
+            if self.product_id in LOGITECH_MICE_PIDS and self.product_id not in LOGITECH_KEYBOARD_PIDS:
+                return "mouse"
+            if self.product_id in LOGITECH_KEYBOARD_PIDS:
+                return "keyboard"
+        
+        # Fall back to HID usage tables
+        if self.usage_page == 0x01:  # Generic Desktop
+            if self.usage == 0x02:
+                return "mouse"
+            elif self.usage == 0x06:
+                return "keyboard"
+            elif self.usage == 0x04:
+                return "joystick"
+            elif self.usage == 0x05:
+                return "gamepad"
+            elif self.usage == 0x08:
+                return "multiaxis"
+            elif self.usage == 0x80:
+                return "system_control"
+        elif self.usage_page == 0x0C:  # Consumer
+            return "remote"
+        elif self.usage_page == 0x0D:  # Digitizer
+            if self.usage == 0x01:
+                return "digitizer"
+            elif self.usage == 0x02:
+                return "pen"
+            elif self.usage == 0x04:
+                return "touchscreen"
+        return "unknown"
+
+    @property
+    def is_builtin(self) -> bool:
+        """
+        Detect if device is internal (built-in to laptop).
+        
+        Strategies (in order of reliability):
+        1. Check Built property in IORegistry (if available)
+        2. Check LocationID patterns (internal devices have specific ranges)
+        3. Match against known Apple internal device PIDs
+        4. Check product name for "Internal" keyword
+        """
+        # Strategy 1: Explicit built property
+        if self.built is not None:
+            return self.built
+        
+        # Strategy 2: LocationID patterns
+        # Internal devices typically have LocationID in specific range
+        if self.location_id is not None:
+            # MacBook internal devices often have LocationID like 0x14xxx or 0x15xxx
+            # This is hardware-specific and may need adjustment
+            if 0x14000000 <= self.location_id <= 0x15ffffff:
+                return True
+        
+        # Strategy 3: Known Apple internal devices
+        APPLE_INTERNAL_PIDS = {
+            0x0273,  # Internal Keyboard/Trackpad (MacBook Pro)
+            0x0274,  # Internal Keyboard/Trackpad (MacBook Air)
+            0x0291,  # Internal Keyboard/Trackpad (newer models)
+            0x0292,  # Internal Keyboard/Trackpad (M1 models)
+            0x0293,  # Internal Keyboard/Trackpad (M2 models)
+        }
+        if self.vendor_id == 0x05AC:  # Apple
+            if self.product_id in APPLE_INTERNAL_PIDS:
+                return True
+            # Also check product name
+            if self.product and "Internal" in self.product:
+                return True
+            # Check manufacturer for "Apple Internal"
+            if self.manufacturer and "Apple Internal" in self.manufacturer:
+                return True
+        
+        # Strategy 4: Transport hints
+        if self.transport:
+            if "Internal" in self.transport:
+                return True
+        
+        return False
 
 
 def _require_macos() -> None:
@@ -96,6 +226,16 @@ def _parse_devices(blob: bytes) -> Iterable[HIDDevice]:
         product = _coerce_int(entry.get("ProductID"))
         if vendor is None or product is None:
             continue
+        
+        # Extract usage page and usage for device type detection
+        usage_page = _coerce_int(entry.get("DeviceUsagePage") or entry.get("PrimaryUsagePage"))
+        usage = _coerce_int(entry.get("DeviceUsage") or entry.get("PrimaryUsage"))
+        
+        # Check if device is built-in (Apple internal devices)
+        built = entry.get("Built")
+        if built is not None and not isinstance(built, bool):
+            built = bool(built)
+        
         devices.append(
             HIDDevice(
                 vendor_id=vendor,
@@ -105,6 +245,9 @@ def _parse_devices(blob: bytes) -> Iterable[HIDDevice]:
                 product=entry.get("Product"),
                 serial_number=entry.get("SerialNumber"),
                 location_id=_coerce_int(entry.get("LocationID")),
+                usage_page=usage_page,
+                usage=usage,
+                built=built,
             )
         )
     return devices

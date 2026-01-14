@@ -41,9 +41,22 @@ def _format_display_line(d) -> str:
 
 
 def _append_device(menu, AppKit, dev, controller=None) -> None:
-    title = dev.product or f"VID {dev.vendor_id:04X} PID {dev.product_id:04X}"
-    if dev.transport:
-        title = f"{title} ({dev.transport})"
+    # Format title with device type emoji and internal/external indicator
+    # Only focus on mice/keyboards; other device categories are not core to Silta
+    device_type_emojis = {
+        "mouse": "🖱️",
+        "keyboard": "⌨️",
+    }
+    emoji = device_type_emojis.get(dev.device_type, "🔌")
+    
+    product_name = dev.product or f"VID {dev.vendor_id:04X} PID {dev.product_id:04X}"
+    location = "(Internal)" if dev.is_builtin else "(External)"
+    
+    title = f"{emoji} {product_name} {location}"
+    
+    if dev.transport and not dev.is_builtin:
+        title = f"{title} - {dev.transport}"
+    
     item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(title, None, "")
     submenu = AppKit.NSMenu.alloc().init()
 
@@ -168,6 +181,18 @@ class _MenuController(NSObject):
                 if self._feedback_item is not None:
                     self._feedback_item.setTitle_(error_msg)
 
+    def openConnectionManager_(self, _sender):  # noqa: N802 - PyObjC action signature
+        """Open the Connection Manager window within the current app runloop."""
+        try:
+            # Import lazily to avoid heavy imports on menu creation
+            from . import connection_window
+            # Ask connection_window to open a window without starting a new app loop
+            connection_window.open_window_in_current_app()
+        except Exception as exc:
+            LOG.exception("Failed to open Connection Manager window: %s", exc)
+            if self._feedback_item is not None:
+                self._feedback_item.setTitle_(f"Open window failed: {exc}")
+
 
 _ACTIVE_CONTROLLERS: List[_MenuController] = []
 
@@ -230,11 +255,23 @@ def run(*, export_path: Optional[str] = None) -> None:  # pragma: no cover - UI
     controller = _MenuController.alloc().initWithFeedbackItem_exportPath_devices_(feedback_item, export_path, devices)
     _ACTIVE_CONTROLLERS.append(controller)
     
-    # Now add device menu items with controller attached
+    # Now add device menu items with controller attached (only mice/keyboards)
     if devices:
-        menu.addItemWithTitle_action_keyEquivalent_("Input Devices:", None, "")
-        for dev in devices:
-            _append_device(menu, AppKit, dev, controller)
+        # Group devices by type (ignore joysticks/gamepads/digitizers/touchscreens)
+        mice = [d for d in devices if d.device_type == "mouse"]
+        keyboards = [d for d in devices if d.device_type == "keyboard"]
+
+        if mice:
+            menu.addItemWithTitle_action_keyEquivalent_("🖱️  Mice:", None, "")
+            for dev in mice:
+                _append_device(menu, AppKit, dev, controller)
+
+        if keyboards:
+            if mice:  # Add separator if we had mice before
+                menu.addItem_(AppKit.NSMenuItem.separatorItem())
+            menu.addItemWithTitle_action_keyEquivalent_("⌨️  Keyboards:", None, "")
+            for dev in keyboards:
+                _append_device(menu, AppKit, dev, controller)
     else:
         menu.addItemWithTitle_action_keyEquivalent_("No HID devices found", None, "")
 
@@ -245,6 +282,13 @@ def run(*, export_path: Optional[str] = None) -> None:  # pragma: no cover - UI
     )
     export_item.setTarget_(controller)
     menu.addItem_(export_item)
+
+    # Open Connection Manager window
+    open_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+        "Open Connection Manager…", "openConnectionManager:", ""
+    )
+    open_item.setTarget_(controller)
+    menu.addItem_(open_item)
     menu.addItem_(feedback_item)
     menu.addItem_(AppKit.NSMenuItem.separatorItem())
 

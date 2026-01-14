@@ -84,6 +84,11 @@ def build_parser() -> argparse.ArgumentParser:
         const="__DEFAULT__",
         help="Export connected device capabilities to JSON on launch (optionally provide a path)",
     )
+    gui.add_argument(
+        "--window",
+        action="store_true",
+        help="Launch standalone connection manager window instead of menubar",
+    )
 
     def parse_int(value: str) -> int:
         try:
@@ -239,12 +244,19 @@ def main() -> None:
             return
 
         if args.mode == "gui":
-            # Lazy import to avoid PyObjC dependency for non-GUI usage
-            from . import menubar
-
             export_path = None
             if getattr(args, "export_capabilities", None):
                 export_path = args.export_capabilities
+            
+            # Check if window mode requested
+            if getattr(args, "window", False):
+                # Launch standalone window GUI
+                from . import connection_window
+                connection_window.run()
+                return
+            
+            # Otherwise launch menubar (original behavior)
+            from . import menubar
             
             if getattr(args, "once", False):
                 # For a quick smoke test, build the menu and exit

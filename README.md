@@ -6,17 +6,18 @@ activation, optional multi-host profiles, and macOS-native event capture.
 
 ## Features
 
-- **Client/Server architecture** – `FlowClient` streams local events to a
-  remote `FlowServer` over TCP with a minimal JSON protocol.
-- **Edge-triggered switching** – move the cursor to a configured screen edge to
-  start or stop forwarding input; optional edge profiles map edges to different
-  remote hosts.
-- **macOS Quartz integrations** – native event taps and CGEvent injection keep
-  latency low while respecting Accessibility permissions.
-- **Device capability detection** – enumerate connected HID devices and detect
-  Logitech Easy-Switch support.
-- **Easy-Switch CLI** – switch Logitech devices between hosts via Bluetooth or USB
-  receivers (uses proven SwitchMX approach for BLE devices).
+remote `FlowServer` over TCP with a minimal JSON protocol.
+start or stop forwarding input; optional edge profiles map edges to different
+remote hosts.
+latency low while respecting Accessibility permissions.
+Logitech Easy-Switch support.
+receivers (uses proven SwitchMX approach for BLE devices).
+
+- **Modern GUI** – macOS menubar and standalone window with device monitoring,
+  connection management, and Liquid Glass visual effects (macOS 26+).
+- **Comprehensive device detection** – automatic identification of device types
+  (mouse, keyboard, etc.) and internal vs external devices.
+- **Expanded device support** – 30+ Logitech devices with Easy-Switch capabilities.
 
 ## Installation
 
@@ -80,20 +81,38 @@ python3 main.py --self-test
 
 ### Testing
 
-Install the development extras and run:
+**Menubar Mode** (default):
 
-```bash
-pytest
-```
+The menubar app displays:
 
-### GUI (macOS menubar)
-
+````bash
+- Connected HID devices grouped by type (🖱️ Mice, ⌨️ Keyboards, etc.)
+- Device type detection and internal/external indicators
+- Capability hints for each device (Easy-Switch, Bluetooth, etc.)
+- Export device capabilities to JSON
+- Interactive Easy-Switch testing controls
 Install optional GUI dependencies and launch the menubar:
+**Standalone Window Mode** (NEW - macOS 26+):
+```bash
+Launch the modern connection manager window with Liquid Glass effects:
 
 ```bash
+python3 main.py gui --window
+````
+
+Features:
+
+- **Liquid Glass UI** – Uses macOS 26 `NSGlassEffectView` for sophisticated translucent effects
+- **Connection monitoring** – Real-time status of Flow client connections
+- **Device overview** – All connected devices with type icons and capabilities
+- **Display information** – Complete display specs at a glance
+- **Automatic fallback** – Uses `NSVisualEffectView` on macOS 15 and earlier
+
+Note: Both GUIs are primarily read-only for device information. Easy-Switch controls are available in menubar mode.
 pip install -e '.[gui]'
 python3 main.py gui
-```
+
+````
 
 The MVP displays:
 
@@ -112,7 +131,7 @@ Switch Logitech Easy-Switch devices between host slots:
 ```bash
 # Works with both Bluetooth and USB receivers!
 python3 main.py capabilities switch --slot 2 --product-id 0xB023
-```
+````
 
 **Proven macOS Support:**
 

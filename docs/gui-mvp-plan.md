@@ -31,6 +31,45 @@ This living document tracks the plan and progress for a macOS menubar GUI that s
 - [x] Menubar UI showing all info — `silta/menubar.py`.
 - [x] CLI `gui` command — `silta/cli.py`.
 - [x] Optional GUI deps in `pyproject.toml` — extra `gui`.
+- [x] **NEW:** Device type detection (mouse/keyboard/etc.) — `silta/mac_hid.py`.
+- [x] **NEW:** Internal vs external device detection — `silta/mac_hid.py`.
+- [x] **NEW:** Expanded capabilities matrix (30+ Logitech devices) — `silta/capabilities.py`.
+- [x] **NEW:** Unit tests for device detection — `tests/test_device_types.py`.
+- [x] **NEW:** Standalone Connection Manager window with Liquid Glass (macOS 26) — `silta/connection_window.py`.
+
+## Recent Updates (November 1, 2025)
+
+### Completed Today
+
+1. **Task 1 - Device Type Detection**: Added HID usage page/usage parsing to identify mice, keyboards, joysticks, gamepads, and more. Updated `HIDDevice` dataclass with `device_type` property.
+
+2. **Task 3 - Expanded Capabilities Matrix**: Grew from 5 devices to 30+ devices including:
+
+   - All MX Master variants (3, 3S, 2S, original)
+   - MX Anywhere series (3, 3S, 2S, 2)
+   - MX Keys family (standard, Mini, S, for Mac, for Business)
+   - MX Mechanical keyboards
+   - MX Ergo trackballs
+   - Lift Vertical mice
+   - K380 keyboards
+   - All receiver types (Unifying, Bolt)
+
+3. **Task 5 - Unit Tests**: Created comprehensive test suite with 15 tests covering:
+
+   - Mouse/keyboard/joystick detection
+   - Internal device identification (multiple strategies)
+   - Edge cases and fallbacks
+   - All tests passing ✅
+
+4. **NEW - Standalone GUI Window**: Created `connection_window.py` with:
+   - **macOS 26 Liquid Glass support** via `NSGlassEffectView`
+   - Fallback to `NSVisualEffectView` for older macOS
+   - Connection status monitoring (ready for integration)
+   - Device listing with type icons and internal/external labels
+   - Display information with specs
+   - Mouse speed display
+   - Sophisticated glass visual effects
+   - Launched via `python main.py gui --window`
 
 ## Nice-to-haves (post-MVP)
 
