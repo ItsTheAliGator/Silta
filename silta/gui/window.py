@@ -55,6 +55,8 @@ def _ensure_objc_helpers(AppKit: Any) -> Tuple[Any, Any]:
 from .data import WindowDataProvider
 from .views import SymbolProvider, CardFactory, QuickActionsBar, _make_label, _make_body_text
 from .tabs import OverviewTabBuilder, DevicesTabBuilder, ConnectionTabBuilder, TabSetup, StackTabBuilder
+from .peer_browser import PeerBrowserView
+from silta.core.session_manager import SessionManager
 
 _WINDOW_SINGLETON = None
 _CONTENT_SINGLETON = None
@@ -139,10 +141,11 @@ class PairingSheetPresenter:
         pass
 
 class ConnectionWindowCoordinator:
-    def __init__(self, AppKit: Any, window: Any, content_view: Any) -> None:
+    def __init__(self, AppKit: Any, window: Any, content_view: Any, session_manager: Optional[SessionManager] = None) -> None:
         self.AppKit = AppKit
         self.window = window
         self.content_view = content_view
+        self.session_manager = session_manager or SessionManager()
         self.data_provider = WindowDataProvider()
         self.symbols = SymbolProvider(AppKit)
         self.card_factory = CardFactory(AppKit, self.symbols)
@@ -272,6 +275,7 @@ def run() -> None:
     window, content_view, _ = _create_glass_window(AppKit)
     
     coordinator = ConnectionWindowCoordinator(AppKit, window, content_view)
+    coordinator.session_manager.start() # Start background services
     coordinator.build()
     _animate_fade_in(AppKit, content_view)
     
