@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 import json
 
-from . import mac_hid
+import silta.hid as mac_hid
 
 
 @dataclass(frozen=True)

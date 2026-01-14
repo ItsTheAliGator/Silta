@@ -9,7 +9,7 @@ from typing import Dict, Optional, Tuple
 from .client import FlowClient, DEFAULT_BACK_HOTKEY, DEFAULT_TOGGLE_HOTKEY
 from .server import FlowServer
 from .utils import LOG, DependencyError, configure_logging
-from . import mac_hid
+import silta.hid as mac_hid
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -251,8 +251,8 @@ def main() -> None:
             # Check if window mode requested
             if getattr(args, "window", False):
                 # Launch standalone window GUI
-                from . import connection_window
-                connection_window.run()
+                from .gui import run as gui_run
+                gui_run()
                 return
             
             # Otherwise launch menubar (original behavior)

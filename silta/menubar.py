@@ -16,7 +16,7 @@ from Foundation import NSObject  # type: ignore
 from .capabilities import capabilities_for, export_connected_capabilities_json
 from .display_info import get_displays
 from .mouse_prefs import read_mouse_speed
-from .mac_hid import list_hid_devices, easy_switch_select_host
+from silta.hid import list_hid_devices, easy_switch_select_host
 from .utils import LOG
 
 
@@ -185,9 +185,9 @@ class _MenuController(NSObject):
         """Open the Connection Manager window within the current app runloop."""
         try:
             # Import lazily to avoid heavy imports on menu creation
-            from . import connection_window
+            from silta.gui import open_window_in_current_app
             # Ask connection_window to open a window without starting a new app loop
-            connection_window.open_window_in_current_app()
+            open_window_in_current_app()
         except Exception as exc:
             LOG.exception("Failed to open Connection Manager window: %s", exc)
             if self._feedback_item is not None:
